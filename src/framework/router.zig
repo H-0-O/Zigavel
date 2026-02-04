@@ -1,12 +1,13 @@
 const std = @import("std");
+const utils = @import("utils.zig");
 
 pub const Router = struct {
     routes: std.ArrayList([]const u8),
     allocator: std.mem.Allocator,
-    
+
     pub fn init() Router {
         const allocator = @import("alloc.zig").default_alloc;
-        var router = Router {
+        var router = Router{
             .routes = std.ArrayList([]const u8){},
             .allocator = allocator,
         };
@@ -16,11 +17,11 @@ pub const Router = struct {
         return router;
     }
 
-    pub fn get(self: *Router , route: []const u8) !void {
+    pub fn get(self: *Router, route: []const u8) !void {
         try self.routes.append(self.allocator, route);
     }
 
     pub fn dump(self: *Router) void {
-        std.debug.print("OK THE ROUTES ARE {s}\n", .{self.routes.items});
+        utils.dump(self.routes);
     }
 };
