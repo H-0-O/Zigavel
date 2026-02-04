@@ -1,20 +1,19 @@
-const router = @import("router.zig");
 const server = @import("server.zig");
-
+const router = @import("router.zig");
 
 pub const App = struct {
-    router: router.Router,
     server: ?server.Server,
+    router: router.Router,
 
-    pub fn init() App{
-        return App {
-            .router = router.Router.init(),
+    pub fn init(_router: router.Router) App {
+        return App{
             .server = null,
+            .router = _router,
         };
     }
 
-    pub fn listen(self: *App , host: []const u8 , port: u16) !void {
-        self.server = server.Server.init(host , port);
+    pub fn listen(self: *App, host: []const u8, port: u16) !void {
+        self.server = server.Server.init(host, port);
         try self.server.?.listen();
     }
 };
