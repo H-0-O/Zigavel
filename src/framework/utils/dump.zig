@@ -65,11 +65,10 @@ fn dumpImpl(
                     }
                 },
                 .one => {
-                    std.debug.print("&", .{});
-                    dumpImpl(p.child, value.*, level);
+                    dumpPointerOne(T, value, level, p);
                 },
-                else => {
-                    std.debug.print("<ptr>", .{});
+                .many, .c => {
+                    dumpPointerMany(T, value, p);
                 },
             }
         },
@@ -100,6 +99,62 @@ fn dumpImpl(
 
         else => {
             std.debug.print("<{s}>", .{@typeName(T)});
+        },
+    }
+}
+
+fn dumpPointerOne(
+    comptime T: type,
+    value: T,
+    comptime level: usize,
+    comptime p: std.builtin.Type.Pointer,
+) void {
+    // Check if child type is a function pointer or anyopaque at comptime
+    const child_info = @typeInfo(p.child);
+    switch (child_info) {
+        .@"fn" => {
+            // Function pointer - can't dereference safely
+            std.debug.print("&<fn>", .{});
+        },
+        .@"opaque" => {
+            // Opaque type - can't dump contents
+            std.debug.print("&<opaque>", .{});
+        },
+        else => {
+            // Regular pointer - can dereference
+            // Check if pointer is null (for allowzero pointers)
+            if (p.is_allowzero) {
+                if (value == null) {
+                    std.debug.print("&null", .{});
+                    return;
+                }
+            }
+            std.debug.print("&", .{});
+            dumpImpl(p.child, value.*, level);
+        },
+    }
+}
+
+fn dumpPointerMany(
+    comptime T: type,
+    value: T,
+    comptime p: std.builtin.Type.Pointer,
+) void {
+    // Check if child type is a function pointer at comptime
+    const child_info = @typeInfo(p.child);
+    switch (child_info) {
+        .@"fn" => {
+            std.debug.print("<ptr><fn>", .{});
+        },
+        else => {
+            if (p.is_allowzero and value == null) {
+                std.debug.print("<ptr>null", .{});
+            } else {
+                std.debug.print("<ptr>", .{});
+                // For many/c pointers, we can't safely dereference without length
+                // Just show the address
+                std.debug.print("@0x{x}", .{@intFromPtr(value)});
+            }
         },
     }
 }
