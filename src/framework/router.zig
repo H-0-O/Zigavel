@@ -17,6 +17,13 @@ const Route = struct {
     handler: *const fn () void,
 };
 
+const Request = struct {
+    method: Method,
+    url: []const u8,
+    headers: std.StringHashMap([]const u8),
+    body: ?[]const u8,
+};
+
 pub const Router = struct {
     routes: std.AutoHashMap(std.StringHashMap([]const u8), Route),
     allocator: std.mem.Allocator,

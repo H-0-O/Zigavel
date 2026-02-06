@@ -1,3 +1,3 @@
 
-run:
-	zig build run
+watch:
+	zig build --watch
