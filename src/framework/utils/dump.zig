@@ -10,7 +10,7 @@ pub fn dump(value: anytype) void {
 fn dumpImpl(
     comptime T: type,
     value: T,
-    comptime level: usize,
+    level: usize,
 ) void {
     if (level >= MAX_DEPTH) {
         std.debug.print("...", .{});
@@ -55,12 +55,12 @@ fn dumpImpl(
                     } else {
                         std.debug.print("[\n", .{});
                         for (value, 0..) |elem, i| {
-                            indent(level + 1);
+                            indentRuntime(level + 1);
                             std.debug.print("{d}: ", .{i});
                             dumpImpl(p.child, elem, level + 1);
                             std.debug.print("\n", .{});
                         }
-                        indent(level);
+                        indentRuntime(level);
                         std.debug.print("]", .{});
                     }
                 },
@@ -76,25 +76,29 @@ fn dumpImpl(
         .array => |a| {
             std.debug.print("[\n", .{});
             inline for (0..a.len) |i| {
-                indent(level + 1);
+                indentRuntime(level + 1);
                 std.debug.print("{d}: ", .{i});
                 dumpImpl(a.child, value[i], level + 1);
                 std.debug.print("\n", .{});
             }
-            indent(level);
+            indentRuntime(level);
             std.debug.print("]", .{});
         },
 
         .@"struct" => |s| {
-            std.debug.print("{s} {{\n", .{@typeName(T)});
-            inline for (s.fields) |f| {
-                indent(level + 1);
-                std.debug.print("{s}: ", .{f.name});
-                dumpImpl(f.type, @field(value, f.name), level + 1);
-                std.debug.print("\n", .{});
+            if (comptime isHashMapType(T)) {
+                dumpHashMapTyped(T, value, level);
+            } else {
+                std.debug.print("{s} {{\n", .{@typeName(T)});
+                inline for (s.fields) |f| {
+                    indentRuntime(level + 1);
+                    std.debug.print("{s}: ", .{f.name});
+                    dumpImpl(f.type, @field(value, f.name), level + 1);
+                    std.debug.print("\n", .{});
+                }
+                indentRuntime(level);
+                std.debug.print("}}", .{});
             }
-            indent(level);
-            std.debug.print("}}", .{});
         },
 
         else => {
@@ -106,7 +110,7 @@ fn dumpImpl(
 fn dumpPointerOne(
     comptime T: type,
     value: T,
-    comptime level: usize,
+    level: usize,
     comptime p: std.builtin.Type.Pointer,
 ) void {
     // Check if child type is a function pointer or anyopaque at comptime
@@ -159,8 +163,31 @@ fn dumpPointerMany(
     }
 }
 
-fn indent(comptime level: usize) void {
-    inline for (0..level) |_| {
+fn isHashMapType(comptime T: type) bool {
+    if (@typeInfo(T) != .@"struct") return false;
+    const name = @typeName(T);
+    // Only std.HashMap / std.StringHashMap; "hash_map.HashMap(" excludes StringContext etc.
+    return std.mem.indexOf(u8, name, "hash_map.HashMap(") != null;
+}
+
+fn dumpHashMapTyped(comptime T: type, value: T, level: usize) void {
+    var m = value;
+    var it = m.iterator();
+    const count = m.count();
+    std.debug.print("HashMap({}) {{\n", .{count});
+    while (it.next()) |entry| {
+        indentRuntime(level + 1);
+        dumpImpl(@TypeOf(entry.key_ptr.*), entry.key_ptr.*, level + 1);
+        std.debug.print(" => ", .{});
+        dumpImpl(@TypeOf(entry.value_ptr.*), entry.value_ptr.*, level + 1);
+        std.debug.print("\n", .{});
+    }
+    indentRuntime(level);
+    std.debug.print("}}", .{});
+}
+
+fn indentRuntime(level: usize) void {
+    for (0..level) |_| {
         std.debug.print("  ", .{});
     }
 }

@@ -1,11 +1,12 @@
 const std = @import("std");
 const ziravel = @import("ziravel");
-const _router = @import("ziravel").Router;
+const _router = ziravel.Router;
+
 pub fn main() !void {
     // Prints to stderr, ignoring potential errors.
-    var router = _router.init();
+    const allocator = ziravel.getDefaultAllocator();
+    var router = _router.init(allocator);
     try router.get("/hello", handler);
-
     router.dump();
 
     var app = ziravel.App.init(router);
@@ -13,6 +14,9 @@ pub fn main() !void {
     try app.listen("127.0.0.1", 8080);
 }
 
-fn handler() void {
+fn handler(request: ziravel.Request) void {
+    // _ = request;
     std.debug.print("Hello, world!\n", .{});
+    std.debug.print("Request: {s}\n", .{request.url});
+    ziravel.Utils.dump(request);
 }

@@ -1,5 +1,5 @@
 const std = @import("std");
-const App = @import("app.zig").App;
+const Http = @import("../Http/Response.zig");
 
 pub const Server = struct {
     host: []const u8,
@@ -24,20 +24,20 @@ pub const Server = struct {
             std.debug.print("Client Connected \n", .{});
 
             capture(ctx, &conn.stream);
-            // var buf: [1024]u8 = undefined;
 
-            // const n = try conn.stream.read(&buf);
+            // Response will be handled by the capture function
+            // This is a placeholder - in a full implementation, the response
+            // would be passed back from the capture handler
+            const allocator = @import("../alloc.zig").default_alloc;
+            var response = Http.Response.init(allocator);
+            defer response.deinit();
+            response.setBody("Hello world\n");
+            try response.header("Content-Type", "text/plain");
 
-            const response =
-                "HTTP/1.1 200 OK\r\n" ++
-                "Content-Length: 12\r\n" ++
-                "Content-Type: text/plain\r\n" ++
-                "\r\n" ++
-                "Hello world\n";
-
-            // _ = n;
-
-            try conn.stream.writeAll(response);
+            const response_str = try response.toHttpString(allocator);
+            defer allocator.free(response_str);
+            try conn.stream.writeAll(response_str);
         }
     }
 };
+
