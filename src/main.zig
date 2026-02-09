@@ -16,7 +16,7 @@ pub fn main() !void {
     try app.listen("127.0.0.1", 8080);
 }
 
-fn handler(request: *zigavel.Request, rs: *zigavel.Response) void {
+fn handler(request: *zigavel.Request, rs: *zigavel.Response) !void {
     std.debug.print("Hello,sfdsfasdf \n", .{});
     std.debug.print("Request: {s}\n", .{request.url});
 
@@ -24,10 +24,10 @@ fn handler(request: *zigavel.Request, rs: *zigavel.Response) void {
 
     const instance = user{ .name = "Hello", .fml = "MEW MEW" };
 
-    rs.json(instance);
+    try rs.json(instance);
 }
 
-fn handler2(request: *zigavel.Request, rs: *zigavel.Response) void {
+fn handler2(request: *zigavel.Request, rs: *zigavel.Response) !void {
     _ = rs;
 
     std.debug.print("OKKOOKOKOOKKKKKK \n", .{});

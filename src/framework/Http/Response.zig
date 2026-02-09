@@ -5,6 +5,7 @@ pub const Response = struct {
     status_text: []const u8,
     headers: std.StringHashMap([]const u8),
     body: []const u8,
+    body_owned: bool,
     allocator: std.mem.Allocator,
 
     pub fn init(allocator: std.mem.Allocator) Response {
@@ -13,21 +14,55 @@ pub const Response = struct {
             .status_text = "OK",
             .headers = std.StringHashMap([]const u8).init(allocator),
             .body = "",
+            .body_owned = false,
             .allocator = allocator,
         };
     }
 
-    pub fn status(self: *Response, code: u16, text: []const u8) void {
+    fn defaultStatusText(code: u16) []const u8 {
+        return switch (code) {
+            200 => "OK",
+            201 => "Created",
+            204 => "No Content",
+            400 => "Bad Request",
+            404 => "Not Found",
+            500 => "Internal Server Error",
+            else => "Unknown",
+        };
+    }
+
+    pub fn statusCode(self: *Response, code: u16) *Response {
+        self.status_code = code;
+        self.status_text = defaultStatusText(code);
+        return self;
+    }
+
+    pub fn status(self: *Response, code: u16, text: []const u8) *Response {
         self.status_code = code;
         self.status_text = text;
+        return self;
     }
 
-    pub fn header(self: *Response, name: []const u8, value: []const u8) !void {
+    pub fn header(self: *Response, name: []const u8, value: []const u8) !*Response {
         try self.headers.put(name, value);
+        return self;
     }
 
-    pub fn setBody(self: *Response, content: []const u8) void {
+    pub fn setBody(self: *Response, content: []const u8) *Response {
+        if (self.body_owned) {
+            self.allocator.free(self.body);
+            self.body_owned = false;
+        }
         self.body = content;
+        return self;
+    }
+
+    fn hasHeaderIgnoreCase(self: *const Response, name: []const u8) bool {
+        var it = self.headers.iterator();
+        while (it.next()) |entry| {
+            if (std.ascii.eqlIgnoreCase(entry.key_ptr.*, name)) return true;
+        }
+        return false;
     }
 
     pub fn toHttpString(self: *const Response, allocator: std.mem.Allocator) ![]const u8 {
@@ -41,7 +76,7 @@ pub const Response = struct {
             try list.writer(allocator).print("{s}: {s}\r\n", .{ entry.key_ptr.*, entry.value_ptr.* });
         }
 
-        if (self.body.len > 0) {
+        if (self.body.len > 0 and !self.hasHeaderIgnoreCase("Content-Length")) {
             try list.writer(allocator).print("Content-Length: {}\r\n", .{self.body.len});
         }
 
@@ -54,34 +89,37 @@ pub const Response = struct {
         return list.toOwnedSlice(allocator);
     }
 
-    pub fn json(self: *Response, data: anytype) void {
-        const allocator = self.allocator;
+    pub fn json(self: *Response, data: anytype) !void {
+        if (self.body_owned) {
+            self.allocator.free(self.body);
+            self.body_owned = false;
+        }
 
-        var out: std.io.Writer.Allocating = .init(allocator);
+        var out: std.io.Writer.Allocating = .init(self.allocator);
         defer out.deinit();
 
-        std.json.Stringify.value(data, .{}, &out.writer) catch {
-            //TODO remove this later and add real error handler
-            @panic("The Stringify can not be done");
-        };
+        try std.json.Stringify.value(data, .{}, &out.writer);
+        const str = try out.toOwnedSlice();
 
-        const str = out.toOwnedSlice() catch {
-            @panic("running out of memory");
-        };
-
-        self.setBody(str);
-        self.header("Content-Type", "application/json") catch {
-            @panic("running out of memory");
-        };
+        self.body = str;
+        self.body_owned = true;
+        try self.headers.put("Content-Type", "application/json");
     }
 
-    pub fn jsonUnmanaged(self: *Response, allocator: std.mem.Allocator, data: anytype) !void {
-        _ = self;
-        _ = allocator;
-        _ = data;
+    pub fn jsonUnmanaged(self: *Response, json_body: []const u8) !void {
+        if (self.body_owned) {
+            self.allocator.free(self.body);
+            self.body_owned = false;
+        }
+        self.body = json_body;
+        try self.headers.put("Content-Type", "application/json");
     }
 
     pub fn deinit(self: *Response) void {
+        if (self.body_owned) {
+            self.allocator.free(self.body);
+            self.body_owned = false;
+        }
         self.headers.deinit();
     }
 };

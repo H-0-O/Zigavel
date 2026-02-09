@@ -37,8 +37,6 @@ pub const App = struct {
         };
         defer request.deinit();
 
-        // TODO: Route matching and handler invocation
-        // _ = self.router.routes[0];
         const route = self.router.resolveRoute(request.method, request.url) catch |err| {
             std.debug.print("Error resolving route: {}\n", .{err});
             return;
@@ -46,10 +44,10 @@ pub const App = struct {
         var response = HttpResponse.Response.init(allocator);
         defer response.deinit();
 
-        route.handler(&request, &response);
-
-        // response.setBody("Hello world\n");
-        // try response.header("Content-Type", "text/plain");
+        route.handler(&request, &response) catch |err| {
+            std.debug.print("Handler error: {}\n", .{err});
+            _ = response.statusCode(500).setBody("Internal Server Error");
+        };
 
         const response_str = response.toHttpString(allocator) catch |err| blk: {
             std.debug.print("Error building response: {}\n", .{err});
