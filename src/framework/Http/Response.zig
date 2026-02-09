@@ -139,3 +139,72 @@ pub const Response = struct {
         self.headers.deinit();
     }
 };
+
+// --- Tests ---
+
+const testing = std.testing;
+
+test "Response init defaults" {
+    var res = Response.init(testing.allocator);
+    defer res.deinit();
+    try testing.expect(res.status_code == 200);
+    try testing.expectEqualStrings("OK", res.status_text);
+    try testing.expect(res.body.len == 0);
+    try testing.expect(!res.body_owned);
+}
+
+test "Response statusCode and chaining" {
+    var res = Response.init(testing.allocator);
+    defer res.deinit();
+    _ = res.statusCode(201);
+    try testing.expect(res.status_code == 201);
+    try testing.expectEqualStrings("Created", res.status_text);
+    _ = res.statusCode(204);
+    try testing.expect(res.status_code == 204);
+    try testing.expectEqualStrings("No Content", res.status_text);
+}
+
+test "Response status with custom text" {
+    var res = Response.init(testing.allocator);
+    defer res.deinit();
+    _ = res.status(418, "I'm a teapot");
+    try testing.expect(res.status_code == 418);
+    try testing.expectEqualStrings("I'm a teapot", res.status_text);
+}
+
+test "Response header" {
+    var res = Response.init(testing.allocator);
+    defer res.deinit();
+    _ = try res.header("X-Custom", "value");
+    try testing.expect(res.headers.get("X-Custom") != null);
+    try testing.expectEqualStrings("value", res.headers.get("X-Custom").?);
+}
+
+test "Response setBody" {
+    var res = Response.init(testing.allocator);
+    defer res.deinit();
+    _ = res.setBody("hello");
+    try testing.expectEqualStrings("hello", res.body);
+}
+
+test "Response toHttpString format" {
+    var res = Response.init(testing.allocator);
+    defer res.deinit();
+    _ = res.statusCode(200).setBody("ok");
+    const raw = try res.toHttpString(testing.allocator);
+    defer testing.allocator.free(raw);
+    try testing.expect(std.mem.startsWith(u8, raw, "HTTP/1.1 200 OK\r\n"));
+    try testing.expect(std.mem.endsWith(u8, raw, "ok"));
+}
+
+test "Response json sets body and Content-Type" {
+    var res = Response.init(testing.allocator);
+    defer res.deinit();
+    const Payload = struct { name: []const u8, n: u8 };
+    try res.json(Payload{ .name = "test", .n = 42 });
+    try testing.expect(res.headers.get("Content-Type") != null);
+    try testing.expectEqualStrings("application/json", res.headers.get("Content-Type").?);
+    try testing.expect(res.body_owned);
+    try testing.expect(std.mem.indexOf(u8, res.body, "test") != null);
+    try testing.expect(std.mem.indexOf(u8, res.body, "42") != null);
+}

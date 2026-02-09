@@ -5,19 +5,18 @@
 //! request lifecycle is: Parse → Resolve → Handler(Request, Response) → Write.
 
 const server = @import("./Server.zig");
-const router = @import("../Routing/Router.zig");
-const Route = @import("../Routing/Route.zig").Route;
-const HttpRequest = @import("../Http/Request.zig");
-const HttpResponse = @import("../Http/Response.zig");
+const routing = @import("routing");
+const http = @import("http");
+const alloc = @import("alloc");
 const std = @import("std");
 
 /// Central application: holds the Router and Server, and runs the request lifecycle per connection.
 pub const App = struct {
     server: ?server.Server,
-    router: router.Router,
+    router: routing.Router,
 
     /// Creates an App that will use the given router for route resolution.
-    pub fn init(_router: router.Router) App {
+    pub fn init(_router: routing.Router) App {
         return App{
             .server = null,
             .router = _router,
@@ -41,21 +40,21 @@ pub const App = struct {
 
     /// Handles one connection: parse Request, resolve Route, call handler, serialize and write Response.
     /// Uses a request-scoped arena so all per-request allocations are freed in one shot when capture returns.
-    pub fn capture(self: *App, stream: *std.net.Stream) void {
-        var arena = @import("../alloc.zig").requestArena();
+    fn capture(self: *App, stream: *std.net.Stream) void {
+        var arena = alloc.requestArena();
         defer arena.deinit();
         const allocator = arena.allocator();
 
-        var request = HttpRequest.Request.parse(allocator, stream) catch |err| {
+        var request = http.Request.parse(allocator, stream) catch |err| {
             std.debug.print("Error parsing request: {}\n", .{err});
             return;
         };
         defer request.deinit();
 
-        var response = HttpResponse.Response.init(allocator);
+        var response = http.Response.init(allocator);
         defer response.deinit();
 
-        const route: ?Route = self.router.resolveRoute(request.method, request.url) catch |err| de: {
+        const route: ?routing.Route = self.router.resolveRoute(request.method, request.url) catch |err| de: {
             switch (err) {
                 error.routeNotFound => {
                     _ = response.statusCode(404).setBody("Route Not Found");

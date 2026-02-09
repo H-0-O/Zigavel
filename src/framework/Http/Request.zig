@@ -111,3 +111,17 @@ pub const ParseErrors = error{
     InvalidRequestLine,
     InvalidMethod,
 } || std.net.Stream.ReadError || std.mem.Allocator.Error;
+
+// --- Tests ---
+
+const testing = std.testing;
+
+test "Method.asStr returns correct strings" {
+    try testing.expectEqualStrings("GET", Method.GET.asStr());
+    try testing.expectEqualStrings("POST", Method.POST.asStr());
+    try testing.expectEqualStrings("PUT", Method.PUT.asStr());
+    try testing.expectEqualStrings("DELETE", Method.DELETE.asStr());
+    try testing.expectEqualStrings("PATCH", Method.PATCH.asStr());
+    try testing.expectEqualStrings("OPTIONS", Method.OPTIONS.asStr());
+    try testing.expectEqualStrings("HEAD", Method.HEAD.asStr());
+}

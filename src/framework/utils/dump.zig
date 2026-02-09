@@ -194,3 +194,25 @@ fn indentRuntime(level: usize) void {
         std.debug.print("  ", .{});
     }
 }
+
+// --- Tests ---
+
+const testing = std.testing;
+
+test "dump does not crash for primitives" {
+    dump(true);
+    dump(@as(u8, 42));
+    dump(@as(i32, -1));
+    dump(@as(f64, 3.14));
+}
+
+test "dump does not crash for strings and optionals" {
+    dump("hello");
+    dump(@as(?u8, 1));
+    dump(@as(?u8, null));
+}
+
+test "dump does not crash for struct" {
+    const S = struct { a: u8, b: []const u8 };
+    dump(S{ .a = 1, .b = "x" });
+}

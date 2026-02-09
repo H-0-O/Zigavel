@@ -16,30 +16,55 @@ pub fn build(b: *std.Build) void {
     // between Debug, ReleaseSafe, ReleaseFast, and ReleaseSmall. Here we do not
     // set a preferred release mode, allowing the user to decide how to optimize.
     const optimize = b.standardOptimizeOption(.{});
+    // Optional test filter for IDE "run test" (e.g. zig build test -Dtest-filter=routerii).
+    const test_filter = b.option([]const u8, "test-filter", "Run only tests matching this filter (used by IDE)");
+    const test_filters: []const []const u8 = if (test_filter) |f|
+        b.allocator.dupe([]const u8, &[1][]const u8{f}) catch @panic("OOM")
+    else
+        &[0][]const u8{};
     // It's also possible to define more custom flags to toggle optional features
     // of this build script using `b.option()`. All defined flags (including
     // target and optimize options) will be listed when running `zig build --help`
     // in this directory.
 
-    // This creates a module, which represents a collection of source files alongside
-    // some compilation options, such as optimization mode and linked system libraries.
-    // Zig modules are the preferred way of making Zig code available to consumers.
-    // addModule defines a module that we intend to make available for importing
-    // to our consumers. We must give it a name because a Zig package can expose
-    // multiple modules and consumers will need to be able to specify which
-    // module they want to access.
-    const mod = b.addModule("zigavel", .{
-        // The root source file is the "entry point" of this module. Users of
-        // this module will only be able to access public declarations contained
-        // in this file, which means that if you have declarations that you
-        // intend to expose to consumers that were defined in other files part
-        // of this module, you will have to make sure to re-export them from
-        // the root file.
-        .root_source_file = b.path("src/root.zig"),
-        // Later on we'll use this module as the root module of a test executable
-        // which requires us to specify a target.
+    // Internal framework modules (named imports so source files avoid relative paths).
+    const alloc_mod = b.addModule("alloc", .{
+        .root_source_file = b.path("src/framework/alloc.zig"),
         .target = target,
     });
+    const utils_mod = b.addModule("utils", .{
+        .root_source_file = b.path("src/framework/utils.zig"),
+        .target = target,
+    });
+    const http_mod = b.addModule("http", .{
+        .root_source_file = b.path("src/framework/Http.zig"),
+        .target = target,
+    });
+    const routing_mod = b.addModule("routing", .{
+        .root_source_file = b.path("src/framework/Routing.zig"),
+        .target = target,
+    });
+    routing_mod.addImport("utils", utils_mod);
+    routing_mod.addImport("http", http_mod);
+
+    const foundation_mod = b.addModule("foundation", .{
+        .root_source_file = b.path("src/framework/Foundation.zig"),
+        .target = target,
+    });
+    foundation_mod.addImport("routing", routing_mod);
+    foundation_mod.addImport("http", http_mod);
+    foundation_mod.addImport("alloc", alloc_mod);
+
+    // Public zigavel module: re-exports from internal modules.
+    const mod = b.addModule("zigavel", .{
+        .root_source_file = b.path("src/root.zig"),
+        .target = target,
+    });
+    mod.addImport("alloc", alloc_mod);
+    mod.addImport("utils", utils_mod);
+    mod.addImport("http", http_mod);
+    mod.addImport("routing", routing_mod);
+    mod.addImport("foundation", foundation_mod);
 
     // Here we define an executable. An executable needs to have a root module
     // which needs to expose a `main` function. While we could add a main function
@@ -120,6 +145,7 @@ pub fn build(b: *std.Build) void {
     // set the releative field.
     const mod_tests = b.addTest(.{
         .root_module = mod,
+        .filters = test_filters,
     });
 
     // A run step that will run the test executable.
@@ -130,6 +156,7 @@ pub fn build(b: *std.Build) void {
     // hence why we have to create two separate ones.
     const exe_tests = b.addTest(.{
         .root_module = exe.root_module,
+        .filters = test_filters,
     });
 
     // A run step that will run the second test executable.

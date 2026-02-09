@@ -7,7 +7,7 @@ pub fn main() !void {
     const allocator = zigavel.getDefaultAllocator();
     var router = _router.init(allocator);
     try router.get("/hello", handler);
-    try router.get("/hello2", handler2);
+    try router.get("/hello/gijidjf/idfjiodjf", handler2);
 
     // router.dump();
 
@@ -28,8 +28,6 @@ fn handler(request: *zigavel.Request, rs: *zigavel.Response) !void {
 }
 
 fn handler2(request: *zigavel.Request, rs: *zigavel.Response) !void {
-    _ = rs;
-
-    std.debug.print("OKKOOKOKOOKKKKKK \n", .{});
-    std.debug.print("Request: {s}\n", .{request.url});
+    _ = request;
+    _ = rs.statusCode(204);
 }

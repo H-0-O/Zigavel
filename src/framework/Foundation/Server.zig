@@ -2,7 +2,7 @@
 //! Used by App to run the request loop; applications typically do not use Server directly.
 
 const std = @import("std");
-const Http = @import("../Http/Response.zig");
+const http = @import("http");
 
 /// Low-level TCP listener. Accepts connections and calls the provided capture function with the stream.
 pub const Server = struct {
