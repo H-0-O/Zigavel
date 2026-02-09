@@ -1,7 +1,10 @@
+//! Debug dump: prints a value (structs, hashmaps, slices, etc.) to stderr with limited depth.
+
 const std = @import("std");
 
 const MAX_DEPTH: usize = 8;
 
+/// Recursively prints a value to stderr, up to MAX_DEPTH levels. Handles structs, hashmaps, slices, optionals.
 pub fn dump(value: anytype) void {
     dumpImpl(@TypeOf(value), value, 0);
     std.debug.print("\n", .{});

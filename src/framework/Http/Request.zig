@@ -1,5 +1,11 @@
+//! HTTP request parsing and representation.
+//!
+//! Request is built from a stream via `Request.parse()`. It holds method, URL,
+//! and headers. Body parsing is not yet implemented (body is null).
+
 const std = @import("std");
 
+/// HTTP method from the request line.
 pub const Method = enum(u4) {
     GET = 1,
     POST = 2,
@@ -9,6 +15,7 @@ pub const Method = enum(u4) {
     OPTIONS = 6,
     HEAD = 7,
 
+    /// Returns the method name as used in HTTP (e.g. "GET", "POST").
     pub fn asStr(self: Method) []const u8 {
         return switch (self) {
             .GET => "GET",
@@ -22,6 +29,7 @@ pub const Method = enum(u4) {
     }
 };
 
+/// Parsed HTTP request: method, URL, headers. Body is currently always null.
 pub const Request = struct {
     method: Method,
     url: []const u8,
@@ -29,6 +37,7 @@ pub const Request = struct {
     body: ?[]const u8,
     allocator: std.mem.Allocator,
 
+    /// Reads from the stream until the end of the headers (\\r\\n\\r\\n) and builds a Request. Caller must call deinit().
     pub fn parse(allocator: std.mem.Allocator, stream: *std.net.Stream) ParseErrors!Request {
         var buf: [8192]u8 = undefined;
         var used: usize = 0;
@@ -75,6 +84,7 @@ pub const Request = struct {
         };
     }
 
+    /// Frees request-owned memory (e.g. headers map).
     pub fn deinit(self: *Request) void {
         self.headers.deinit();
     }
@@ -95,6 +105,7 @@ fn parseMethod(method_str: []const u8) ?Method {
     return null;
 }
 
+/// Errors that may occur when parsing a request from a stream.
 pub const ParseErrors = error{
     BufferOverflow,
     InvalidRequestLine,

@@ -1,5 +1,12 @@
+//! HTTP response building and serialization.
+//!
+//! Response holds status, headers, and body. Use fluent methods (statusCode, header, setBody, json)
+//! to build the response; then toHttpString() produces the raw HTTP bytes. The framework calls
+//! toHttpString and writes to the stream; handlers typically only build the response.
+
 const std = @import("std");
 
+/// Mutable HTTP response: status, headers, body. Create with init(), then chain statusCode/header/setBody/json.
 pub const Response = struct {
     status_code: u16,
     status_text: []const u8,
@@ -8,6 +15,7 @@ pub const Response = struct {
     body_owned: bool,
     allocator: std.mem.Allocator,
 
+    /// Creates a 200 OK response with empty body. Caller must call deinit() when done.
     pub fn init(allocator: std.mem.Allocator) Response {
         return Response{
             .status_code = 200,
@@ -31,23 +39,27 @@ pub const Response = struct {
         };
     }
 
+    /// Sets status code and default status text. Returns self for chaining.
     pub fn statusCode(self: *Response, code: u16) *Response {
         self.status_code = code;
         self.status_text = defaultStatusText(code);
         return self;
     }
 
+    /// Sets status code and custom status text. Returns self for chaining.
     pub fn status(self: *Response, code: u16, text: []const u8) *Response {
         self.status_code = code;
         self.status_text = text;
         return self;
     }
 
+    /// Adds a response header. Returns self for chaining.
     pub fn header(self: *Response, name: []const u8, value: []const u8) !*Response {
         try self.headers.put(name, value);
         return self;
     }
 
+    /// Sets the response body (no ownership transfer). Frees any previous body owned by Response. Returns self for chaining.
     pub fn setBody(self: *Response, content: []const u8) *Response {
         if (self.body_owned) {
             self.allocator.free(self.body);
@@ -65,6 +77,7 @@ pub const Response = struct {
         return false;
     }
 
+    /// Serializes the response to a full HTTP/1.1 message. Caller must free the returned slice.
     pub fn toHttpString(self: *const Response, allocator: std.mem.Allocator) ![]const u8 {
         var list = std.ArrayListUnmanaged(u8){};
         defer list.deinit(allocator);
@@ -89,6 +102,7 @@ pub const Response = struct {
         return list.toOwnedSlice(allocator);
     }
 
+    /// Serializes `data` to JSON, sets body and Content-Type: application/json. Response owns the allocated body.
     pub fn json(self: *Response, data: anytype) !void {
         if (self.body_owned) {
             self.allocator.free(self.body);
@@ -106,6 +120,7 @@ pub const Response = struct {
         try self.headers.put("Content-Type", "application/json");
     }
 
+    /// Sets body to pre-serialized JSON and Content-Type. Caller keeps ownership of json_body.
     pub fn jsonUnmanaged(self: *Response, json_body: []const u8) !void {
         if (self.body_owned) {
             self.allocator.free(self.body);
@@ -115,6 +130,7 @@ pub const Response = struct {
         try self.headers.put("Content-Type", "application/json");
     }
 
+    /// Frees response-owned memory (e.g. JSON body, headers map).
     pub fn deinit(self: *Response) void {
         if (self.body_owned) {
             self.allocator.free(self.body);
