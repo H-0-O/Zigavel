@@ -7,16 +7,29 @@ pub fn main() !void {
     const allocator = zigavel.getDefaultAllocator();
     var router = _router.init(allocator);
     try router.get("/hello", handler);
-    router.dump();
+    try router.get("/hello2", handler2);
+
+    // router.dump();
 
     var app = zigavel.App.init(router);
 
     try app.listen("127.0.0.1", 8080);
 }
 
-fn handler(request: zigavel.Request) void {
-    // _ = request;
-    std.debug.print("Hello, world!\n", .{});
+fn handler(request: *zigavel.Request, rs: *zigavel.Response) void {
+    std.debug.print("Hello,sfdsfasdf \n", .{});
     std.debug.print("Request: {s}\n", .{request.url});
-    zigavel.Utils.dump(request);
+
+    const user = struct { name: []const u8, fml: []const u8 };
+
+    const instance = user{ .name = "Hello", .fml = "MEW MEW" };
+
+    rs.json(instance);
+}
+
+fn handler2(request: *zigavel.Request, rs: *zigavel.Response) void {
+    _ = rs;
+
+    std.debug.print("OKKOOKOKOOKKKKKK \n", .{});
+    std.debug.print("Request: {s}\n", .{request.url});
 }

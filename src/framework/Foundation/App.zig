@@ -1,6 +1,7 @@
 const server = @import("./Server.zig");
 const router = @import("../Routing/Router.zig");
-const Http = @import("../Http/Request.zig");
+const HttpRequest = @import("../Http/Request.zig");
+const HttpResponse = @import("../Http/Response.zig");
 const std = @import("std");
 
 pub const App = struct {
@@ -30,7 +31,7 @@ pub const App = struct {
 
     pub fn capture(self: *App, stream: *std.net.Stream) void {
         const allocator = @import("../alloc.zig").default_alloc;
-        var request = Http.Request.parse(allocator, stream) catch |err| {
+        var request = HttpRequest.Request.parse(allocator, stream) catch |err| {
             std.debug.print("Error parsing request: {}\n", .{err});
             return;
         };
@@ -38,8 +39,26 @@ pub const App = struct {
 
         // TODO: Route matching and handler invocation
         // _ = self.router.routes[0];
-        self.router.routes.items[0].handler(request);
+        const route = self.router.resolveRoute(request.method, request.url) catch |err| {
+            std.debug.print("Error resolving route: {}\n", .{err});
+            return;
+        };
+        var response = HttpResponse.Response.init(allocator);
+        defer response.deinit();
 
+        route.handler(&request, &response);
+
+        // response.setBody("Hello world\n");
+        // try response.header("Content-Type", "text/plain");
+
+        const response_str = response.toHttpString(allocator) catch |err| blk: {
+            std.debug.print("Error building response: {}\n", .{err});
+            const body = "Internal Server Error";
+            break :blk std.fmt.allocPrint(allocator, "HTTP/1.1 500 Internal Server Error\r\nContent-Length: {d}\r\n\r\n{s}", .{ body.len, body }) catch @panic("cannot build 500 response");
+        };
+        defer allocator.free(response_str);
+        stream.writeAll(response_str) catch |err| {
+            @panic(std.fmt.allocPrint(allocator, "writing stream failed: {any}", .{err}) catch "writing stream failed");
+        };
     }
 };
-

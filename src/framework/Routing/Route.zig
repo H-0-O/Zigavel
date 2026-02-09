@@ -1,8 +1,10 @@
-const Http = @import("../Http/Request.zig");
+const HttpRequest = @import("../Http/Request.zig");
+const HttpResponse = @import("../Http/Response.zig");
+
+pub const Handler = *const fn (*HttpRequest.Request, *HttpResponse.Response) void;
 
 pub const Route = struct {
     url: []const u8,
-    method: Http.Method,
-    handler: *const fn (Http.Request) void,
+    method: HttpRequest.Method,
+    handler: Handler,
 };
-

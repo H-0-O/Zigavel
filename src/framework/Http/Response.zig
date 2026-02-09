@@ -54,8 +54,34 @@ pub const Response = struct {
         return list.toOwnedSlice(allocator);
     }
 
+    pub fn json(self: *Response, data: anytype) void {
+        const allocator = self.allocator;
+
+        var out: std.io.Writer.Allocating = .init(allocator);
+        defer out.deinit();
+
+        std.json.Stringify.value(data, .{}, &out.writer) catch {
+            //TODO remove this later and add real error handler
+            @panic("The Stringify can not be done");
+        };
+
+        const str = out.toOwnedSlice() catch {
+            @panic("running out of memory");
+        };
+
+        self.setBody(str);
+        self.header("Content-Type", "application/json") catch {
+            @panic("running out of memory");
+        };
+    }
+
+    pub fn jsonUnmanaged(self: *Response, allocator: std.mem.Allocator, data: anytype) !void {
+        _ = self;
+        _ = allocator;
+        _ = data;
+    }
+
     pub fn deinit(self: *Response) void {
         self.headers.deinit();
     }
 };
-

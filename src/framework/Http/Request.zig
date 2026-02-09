@@ -1,13 +1,25 @@
 const std = @import("std");
 
-pub const Method = enum {
-    GET,
-    POST,
-    PUT,
-    DELETE,
-    PATCH,
-    OPTIONS,
-    HEAD,
+pub const Method = enum(u4) {
+    GET = 1,
+    POST = 2,
+    PUT = 3,
+    DELETE = 4,
+    PATCH = 5,
+    OPTIONS = 6,
+    HEAD = 7,
+
+    pub fn asStr(self: Method) []const u8 {
+        return switch (self) {
+            .GET => "GET",
+            .POST => "POST",
+            .PUT => "PUT",
+            .DELETE => "DELETE",
+            .PATCH => "PATCH",
+            .OPTIONS => "OPTIONS",
+            .HEAD => "HEAD",
+        };
+    }
 };
 
 pub const Request = struct {
@@ -45,12 +57,11 @@ pub const Request = struct {
 
         var headers = std.StringHashMap([]const u8).init(allocator);
 
-
         while (lines.next()) |line| {
             if (line.len == 0) break;
             if (std.mem.indexOfScalar(u8, line, ':')) |colon| {
                 const name = std.mem.trim(u8, line[0..colon], " \t");
-                const value = std.mem.trim(u8, line[colon + 1..], " \t");
+                const value = std.mem.trim(u8, line[colon + 1 ..], " \t");
                 try headers.put(name, value);
             }
         }
@@ -89,4 +100,3 @@ pub const ParseErrors = error{
     InvalidRequestLine,
     InvalidMethod,
 } || std.net.Stream.ReadError || std.mem.Allocator.Error;
-

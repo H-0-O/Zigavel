@@ -1,6 +1,7 @@
 pub const App = @import("framework/Foundation/App.zig").App;
 pub const Router = @import("framework/Routing/Router.zig").Router;
 pub const Request = @import("framework/Http/Request.zig").Request;
+pub const Response = @import("framework/Http/Response.zig").Response;
 pub const Utils = @import("framework/utils.zig");
 
 pub fn getDefaultAllocator() std.mem.Allocator {
