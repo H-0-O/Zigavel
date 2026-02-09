@@ -1,3 +1,9 @@
+//! Application bootstrap and request capture.
+//!
+//! App ties the Router to the Server: it parses incoming streams into Request,
+//! resolves routes, dispatches to handlers, and writes the Response back. The
+//! request lifecycle is: Parse → Resolve → Handler(Request, Response) → Write.
+
 const server = @import("./Server.zig");
 const router = @import("../Routing/Router.zig");
 const Route = @import("../Routing/Route.zig").Route;
@@ -5,10 +11,12 @@ const HttpRequest = @import("../Http/Request.zig");
 const HttpResponse = @import("../Http/Response.zig");
 const std = @import("std");
 
+/// Central application: holds the Router and Server, and runs the request lifecycle per connection.
 pub const App = struct {
     server: ?server.Server,
     router: router.Router,
 
+    /// Creates an App that will use the given router for route resolution.
     pub fn init(_router: router.Router) App {
         return App{
             .server = null,
@@ -16,6 +24,7 @@ pub const App = struct {
         };
     }
 
+    /// Binds the server to host:port and runs the accept loop. Blocks; for each connection, capture() is invoked.
     pub fn listen(self: *App, host: []const u8, port: u16) !void {
         self.server = server.Server.init(host, port);
 
@@ -30,8 +39,13 @@ pub const App = struct {
         try self.server.?.listen(capture_wrapper.call, self);
     }
 
+    /// Handles one connection: parse Request, resolve Route, call handler, serialize and write Response.
+    /// Uses a request-scoped arena so all per-request allocations are freed in one shot when capture returns.
     pub fn capture(self: *App, stream: *std.net.Stream) void {
-        const allocator = @import("../alloc.zig").default_alloc;
+        var arena = @import("../alloc.zig").requestArena();
+        defer arena.deinit();
+        const allocator = arena.allocator();
+
         var request = HttpRequest.Request.parse(allocator, stream) catch |err| {
             std.debug.print("Error parsing request: {}\n", .{err});
             return;
@@ -66,7 +80,7 @@ pub const App = struct {
             const body = "Internal Server Error";
             break :blk std.fmt.allocPrint(allocator, "HTTP/1.1 500 Internal Server Error\r\nContent-Length: {d}\r\n\r\n{s}", .{ body.len, body }) catch @panic("cannot build 500 response");
         };
-        defer allocator.free(response_str);
+        // response_str is arena-owned; freed when arena.deinit() runs
         stream.writeAll(response_str) catch |err| {
             @panic(std.fmt.allocPrint(allocator, "writing stream failed: {any}", .{err}) catch "writing stream failed");
         };
