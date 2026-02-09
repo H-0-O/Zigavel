@@ -21,7 +21,7 @@ Package version in [build.zig.zon](build.zig.zon) is `0.0.0`; module name in bui
 - **Routing**: Return proper HTTP 404 when no route matches and 405 when method does not match (optional: `Allow` header).
 - **Request**: Parse query string into a simple map (e.g. `?foo=bar`) and expose on `Request`; keep body parsing out of scope for this version.
 - **Response**: Ensure `Content-Length` and error responses are consistent; no new APIs required.
-- **Docs**: Add a minimal README (what Ziravel is, how to run, link to .cursorrules for philosophy).
+- **Docs**: Add a minimal README (what Zigavel is, how to run, link to .cursorrules for philosophy).
 - **Version**: Set `version = "0.1.0"` in `build.zig.zon` and document in README or CHANGELOG.
 
 **Outcome**: Clear "v0.1" baseline with correct 404/405 and query string support.

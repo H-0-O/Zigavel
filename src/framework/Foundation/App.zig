@@ -1,5 +1,6 @@
 const server = @import("./Server.zig");
 const router = @import("../Routing/Router.zig");
+const Route = @import("../Routing/Route.zig").Route;
 const HttpRequest = @import("../Http/Request.zig");
 const HttpResponse = @import("../Http/Response.zig");
 const std = @import("std");
@@ -37,17 +38,28 @@ pub const App = struct {
         };
         defer request.deinit();
 
-        const route = self.router.resolveRoute(request.method, request.url) catch |err| {
-            std.debug.print("Error resolving route: {}\n", .{err});
-            return;
-        };
         var response = HttpResponse.Response.init(allocator);
         defer response.deinit();
 
-        route.handler(&request, &response) catch |err| {
-            std.debug.print("Handler error: {}\n", .{err});
-            _ = response.statusCode(500).setBody("Internal Server Error");
+        const route: ?Route = self.router.resolveRoute(request.method, request.url) catch |err| de: {
+            switch (err) {
+                error.routeNotFound => {
+                    _ = response.statusCode(404).setBody("Route Not Found");
+                    break :de null;
+                },
+                else => {
+                    _ = response.statusCode(500).setBody("Something went wrong");
+                    break :de null;
+                },
+            }
         };
+
+        if (route) |r| {
+            r.handler(&request, &response) catch |err| {
+                std.debug.print("Handler error: {}\n", .{err});
+                _ = response.statusCode(500).setBody("Internal Server Error");
+            };
+        }
 
         const response_str = response.toHttpString(allocator) catch |err| blk: {
             std.debug.print("Error building response: {}\n", .{err});

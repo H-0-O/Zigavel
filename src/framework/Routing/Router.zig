@@ -16,7 +16,7 @@ pub const Router = struct {
     }
 
     pub fn get(self: *Router, route: []const u8, handler: FnHandler) !void {
-        const key = try std.fmt.allocPrint(self.allocator, "{s}{s}", .{ Http.Method.GET.asStr(), route });
+        const key = try std.fmt.allocPrint(self.allocator, "{s}-{s}", .{ Http.Method.GET.asStr(), route });
         try self.routes.put(key, Route{
             .url = route,
             .method = Http.Method.GET,
@@ -25,7 +25,7 @@ pub const Router = struct {
     }
 
     pub fn post(self: *Router, route: []const u8, handler: FnHandler) !void {
-        const key = try std.fmt.allocPrint(self.allocator, "{s}{s}", .{ Http.Method.POST.asStr(), route });
+        const key = try std.fmt.allocPrint(self.allocator, "{s}-{s}", .{ Http.Method.POST.asStr(), route });
         try self.routes.put(key, Route{
             .url = route,
             .method = Http.Method.POST,
@@ -34,7 +34,7 @@ pub const Router = struct {
     }
 
     pub fn put(self: *Router, route: []const u8, handler: FnHandler) !void {
-        const key = try std.fmt.allocPrint(self.allocator, "{s}{s}", .{ Http.Method.PUT.asStr(), route });
+        const key = try std.fmt.allocPrint(self.allocator, "{s}-{s}", .{ Http.Method.PUT.asStr(), route });
         try self.routes.put(key, Route{
             .url = route,
             .method = Http.Method.PUT,
@@ -43,7 +43,7 @@ pub const Router = struct {
     }
 
     pub fn delete(self: *Router, route: []const u8, handler: FnHandler) !void {
-        const key = try std.fmt.allocPrint(self.allocator, "{s}{s}", .{ Http.Method.DELETE.asStr(), route });
+        const key = try std.fmt.allocPrint(self.allocator, "{s}-{s}", .{ Http.Method.DELETE.asStr(), route });
         try self.routes.put(key, Route{
             .url = route,
             .method = Http.Method.DELETE,
@@ -61,7 +61,7 @@ pub const Router = struct {
     }
 
     pub fn options(self: *Router, route: []const u8, handler: FnHandler) !void {
-        const key = try std.fmt.allocPrint(self.allocator, "{s}{s}", .{ Http.Method.OPTIONS.asStr(), route });
+        const key = try std.fmt.allocPrint(self.allocator, "{s}-{s}", .{ Http.Method.OPTIONS.asStr(), route });
         try self.routes.put(key, Route{
             .url = route,
             .method = Http.Method.OPTIONS,
@@ -70,7 +70,7 @@ pub const Router = struct {
     }
 
     pub fn head(self: *Router, route: []const u8, handler: FnHandler) !void {
-        const key = try std.fmt.allocPrint(self.allocator, "{s}{s}", .{ Http.Method.HEAD.asStr(), route });
+        const key = try std.fmt.allocPrint(self.allocator, "{s}-{s}", .{ Http.Method.HEAD.asStr(), route });
         try self.routes.put(key, Route{
             .url = route,
             .method = Http.Method.HEAD,
@@ -79,7 +79,7 @@ pub const Router = struct {
     }
 
     pub fn resolveRoute(self: *Router, method: Http.Method, url: []const u8) (RoutesError || std.mem.Allocator.Error)!Route {
-        const key = try std.fmt.allocPrint(self.allocator, "{s}{s}", .{ method.asStr(), url });
+        const key = try std.fmt.allocPrint(self.allocator, "{s}-{s}", .{ method.asStr(), url });
         defer self.allocator.free(key);
         const route = self.routes.get(key);
         if (route == null) {
@@ -89,7 +89,7 @@ pub const Router = struct {
     }
 
     pub fn dump(self: *Router) void {
-        utils.dump(self.routes.items);
+        utils.dump(self.routes);
     }
 
     pub fn deinit(self: *Router) void {
@@ -101,4 +101,4 @@ pub const Router = struct {
     }
 };
 
-const RoutesError = error{routeNotFound};
+pub const RoutesError = error{routeNotFound};
